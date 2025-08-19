@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pastel Memory Game - 4 Cards</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@300;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* Pastel Dark Mode */
+      --bg-dark: #1b1f2f;
+      --card-front-dark: #2b3148;
+      --card-back-dark: linear-gradient(135deg, #a5d8ff, #b5ead7, #e0bbe4);
+      --text-dark: #f1f5f9;
+      --accent-dark: #ffda77;
+
+      /* Pastel Light Mode */
+      --bg-light: #fefefe;
+      --card-front-light: #f4f5f7;
+      --card-back-light: linear-gradient(135deg, #ffdac1, #c7ceea, #ffb7b2);
+      --text-light: #1b1f2f;
+      --accent-light: #ff758f;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: background 0.4s, color 0.4s;
+      font-family: "Poppins", sans-serif;
+    }
+
+    h1 {
+      font-family: "Pacifico", cursive;
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      text-align: center;
+      text-shadow: 2px 4px 10px rgba(0,0,0,0.2);
+      transition: color 0.4s;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .score {
+      font-size: 1rem;
+      padding: 6px 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      font-family: "Pacifico", cursive;
+    }
+
+    button {
+      border: none;
+      padding: 8px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: "Pacifico", cursive;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    button:hover {
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+    }
+
+    /* Game Board */
+    .game-board {
+      display: grid;
+      gap: 15px;
+      justify-content: center;
+      transition: all 0.3s ease;
+      grid-template-columns: repeat(2, 110px);
+    }
+
+    .card {
+      width: 110px;
+      height: 130px;
+      perspective: 1000px;
+      position: relative;
+      border-radius: 15px;
+    }
+
+    .inner-card {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    }
+
+    .card.flip .inner-card {
+      transform: rotateY(180deg);
+    }
+
+    .front, .back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      backface-visibility: hidden;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+
+    .front {
+      border: 2px dashed rgba(0,0,0,0.1);
+    }
+
+    .back {
+      transform: rotateY(180deg);
+      color: #333;
+      font-size: 2rem;
+    }
+
+    /* Remove Animation */
+    .card.remove {
+      animation: popOut 0.6s forwards;
+    }
+
+    @keyframes popOut {
+      50% { transform: scale(1.15); }
+      100% { opacity: 0; transform: scale(0); }
+    }
+
+    /* Theme Modes */
+    body.dark {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    body.dark h1 { color: var(--accent-dark); }
+    body.dark .front { background: var(--card-front-dark); }
+    body.dark .back { background: var(--card-back-dark); }
+
+    body.light {
+      background: var(--bg-light);
+      color: var(--text-light);
+    }
+
+    body.light h1 { color: var(--accent-light); }
+    body.light .front { background: var(--card-front-light); }
+    body.light .back { background: var(--card-back-light); }
+  </style>
+</head>
+<body class="light">
+  <h1>🌸 Pastel Memory Game 🌸</h1>
+  <div class="top-bar">
+    <button onclick="toggleTheme()">🌙 / ☀️</button>
+    <button onclick="restartGame()">🔄 Restart</button>
+    <div class="score" id="points">Points: 0</div>
+    <div class="score" id="moves">Moves: 0</div>
+  </div>
+
+  <div class="game-board" id="gameBoard"></div>
+  <div class="status" id="status">Find all the pairs 💕</div>
+
+  <script>
+    const allIcons = ["🌸","⭐"]; // only 2 icons → 4 cards
+
+    let cards = [];
+    let flippedCards = [];
+    let points = 0;
+    let moves = 0;
+    let lockBoard = false;
+
+    const board = document.getElementById("gameBoard");
+    const statusText = document.getElementById("status");
+    const pointsText = document.getElementById("points");
+    const movesText = document.getElementById("moves");
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function createBoard() {
+      board.innerHTML = "";
+      let selected = allIcons;
+      cards = shuffle([...selected, ...selected]);
+
+      board.style.gridTemplateColumns = "repeat(2, 110px)"; // 2x2 grid
+
+      cards.forEach(icon => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.innerHTML = `
+          <div class="inner-card">
+            <div class="front"></div>
+            <div class="back">${icon}</div>
+          </div>`;
+        card.addEventListener("click", () => flipCard(card, icon));
+        board.appendChild(card);
+      });
+    }
+
+    function flipCard(card, icon) {
+      if (lockBoard || card.classList.contains("flip")) return;
+
+      card.classList.add("flip");
+      flippedCards.push({ card, icon });
+
+      if (flippedCards.length === 2) {
+        moves++;
+        movesText.textContent = `Moves: ${moves}`;
+        lockBoard = true;
+        checkMatch();
+      }
+    }
+
+    function checkMatch() {
+      let [first, second] = flippedCards;
+
+      if (first.icon === second.icon) {
+        setTimeout(() => {
+          first.card.classList.add("remove");
+          second.card.classList.add("remove");
+          setTimeout(() => {
+            first.card.remove();
+            second.card.remove();
+          }, 500);
+
+          points++;
+          pointsText.textContent = `Points: ${points}`;
+          flippedCards = [];
+          lockBoard = false;
+
+          if (points === 2) { // 2 pairs only
+            statusText.textContent = `🎉 You Won in ${moves} Moves! 🌟`;
+          }
+        }, 500);
+      } else {
+        setTimeout(() => {
+          first.card.classList.remove("flip");
+          second.card.classList.remove("flip");
+          flippedCards = [];
+          lockBoard = false;
+        }, 900);
+      }
+    }
+
+    function restartGame() {
+      points = 0;
+      moves = 0;
+      flippedCards = [];
+      pointsText.textContent = "Points: 0";
+      movesText.textContent = "Moves: 0";
+      statusText.textContent = "Find all the pairs &hearts";
+      createBoard();
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark");
+      document.body.classList.toggle("light");
+    }
+
+    // Initialize
+    createBoard();
+  </script>
+</body>
+</html>
